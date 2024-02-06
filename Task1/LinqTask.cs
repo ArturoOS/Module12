@@ -91,25 +91,39 @@ namespace Task1
         {
             if (customers == null)
                 throw new ArgumentNullException();
-            return customers.Where(x => x.PostalCode != null || x.Region == null || !x.Phone.Contains('('));
+            return customers.Where(x => int.TryParse(x.PostalCode, out _) == false || x.Region == null || !x.Phone.Contains('('));
         }
 
         public static IEnumerable<Linq7CategoryGroup> Linq7(IEnumerable<Product> products)
         {
             if (products == null)
                 throw new ArgumentNullException();
-            /* example of Linq7result
 
-             category - Beverages
-	            UnitsInStock - 39
-		            price - 18.0000
-		            price - 19.0000
-	            UnitsInStock - 17
-		            price - 18.0000
-		            price - 19.0000
-             */
+            List<Linq7CategoryGroup> list = new List<Linq7CategoryGroup>();
+            
+            var orderByCategory = products.OrderBy(x => x.Category).GroupBy(x => x.Category).Select(x=>x.First());
+            foreach ( var category in orderByCategory) 
+            {
+                var orderByStock = products.Where(x => x.Category == category.Category).OrderByDescending(x => x.UnitsInStock).GroupBy(x => x.UnitsInStock).Select(x => x.First());
+                var unitsInStockGroupList = new List<Linq7UnitsInStockGroup>();
+                foreach (var stock in orderByStock)
+                {
+                    var unitsInStockGroup = new Linq7UnitsInStockGroup()
+                    {
+                        UnitsInStock = stock.UnitsInStock,
+                        Prices = products.Where(x => x.Category == category.Category && x.UnitsInStock==stock.UnitsInStock).Select(x => x.UnitPrice).ToList()
+                    };
+                    unitsInStockGroupList.Add(unitsInStockGroup);
+                }
 
-            throw new NotImplementedException();
+
+                list.Add(new Linq7CategoryGroup() 
+                { 
+                    Category = category.Category, 
+                    UnitsInStockGroup = unitsInStockGroupList
+                });
+            }
+            return list ;
         }
 
         public static IEnumerable<(decimal category, IEnumerable<Product> products)> Linq8(
@@ -121,7 +135,26 @@ namespace Task1
         {
             if (products == null)
                 throw new ArgumentNullException();
-            throw new NotImplementedException();
+            var list = new List<(decimal category, IEnumerable<Product> products)>();
+            
+            var cheapProducts = products
+                .GroupBy(x => x.UnitPrice >= 0 && x.UnitPrice <= cheap)
+                .Where(x => x.Key == true)
+                .Select(x => x.ToList());
+            var middleProducts = products
+                .GroupBy(x => x.UnitPrice > cheap && x.UnitPrice <= middle)
+                .Where(x => x.Key == true)
+                .Select(x => x.ToList());
+            var expensiveProducts = products
+                .GroupBy(x => x.UnitPrice > middle && x.UnitPrice <= expensive)
+                .Where(x => x.Key == true)
+                .Select(x => x.ToList());
+
+            list.Add((cheap,cheapProducts.FirstOrDefault()));
+            list.Add((middle, middleProducts.FirstOrDefault()));
+            list.Add((expensive, expensiveProducts.FirstOrDefault()));
+
+            return list;
         }
 
         public static IEnumerable<(string city, int averageIncome, int averageIntensity)> Linq9(
@@ -130,9 +163,34 @@ namespace Task1
         {
             if (customers == null)
                 throw new ArgumentNullException();
-            var a = customers.Select(x => x.Country).Distinct();
+            var list = new List<(string,int,int)>();
+            var cities = customers.Select(x => x.City).Distinct();
+            foreach ( var city in cities) 
+            {
+                int averageIncome = 0;
+                
+                var income = customers.Where(x => x.City == city).Select(x => x.Orders);
+                if (income.Count() > 0)
+                {
+                    decimal sum = 0;
+                    foreach (var item in income)
+                    {
+                        sum += item.Sum(x=>x.Total);
+                    }
+                    averageIncome = (int)Math.Round(sum/ customers.Where(x => x.City == city).ToList().Count,0);
+                }
 
-            return null;
+                var averageIntensity = (int)decimal.Round(
+                    customers
+                    .Where(x => x.City == city)
+                    .Select(x => x.Orders).Sum(x=>x.Length)/ 
+                    customers.Where(x => x.City == city)
+                    .ToList().Count,0);
+
+                list.Add((city,averageIncome,averageIntensity));
+            }
+
+            return list;
         }
 
         public static string Linq10(IEnumerable<Supplier> suppliers)

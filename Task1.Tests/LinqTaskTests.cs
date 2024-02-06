@@ -130,8 +130,10 @@ namespace Task1.Tests
         public void Linq6_Customers_ReturnsFilteredCustomers()
         {
             var expectedResult = DataSource.Customers.ToList();
+
+            expectedResult.RemoveAt(5);
+            expectedResult.RemoveAt(1);
             expectedResult.RemoveAt(0);
-            expectedResult.RemoveAt(3);
 
             var result = LinqTask.Linq6(DataSource.Customers).ToList();
 
